@@ -6,8 +6,8 @@ A small Applicant Tracking System. Admins create accounts for customers; custome
 
 ## Features
 
-- **Accounts:** admins create admin and customer accounts (public sign-up is disabled).
-- **Login** with email and password.
+- **Accounts:** admins create admin and customer accounts (public sign-up is disabled), reset passwords and delete accounts.
+- **Login** with email and password; every user can change their own password on the Account page.
 - **Jobs:** create, edit, close and reopen jobs, with candidate counts.
 - **Candidates:** name, email, phone, LinkedIn URL, notes, stage and a PDF CV.
 - **Kanban board:** six stages (Applied → Hired / Rejected), drag and drop between columns, filter by job and search by candidate name.
@@ -26,6 +26,7 @@ Supabase
    ├─ Auth ────── email + password, sign-up disabled
    └─ Edge Functions (server-side, hold secrets)
         ├─ create-user  admin-only: creates the login + profile (needs the secret key)
+        ├─ manage-user  admin-only: reset password, delete account (+ its CVs)
         └─ score-cv     runs as the caller, sends CV + job to OpenRouter
 ```
 
@@ -55,12 +56,12 @@ The React app talks to the database directly, so **the database enforces access,
 src/
   auth/        AuthProvider (session + profile), route guards
   owner/       OwnerProvider: whose data we're working on ("Acting as")
-  pages/       BoardPage (kanban), JobsPage, AdminPage, LoginPage
+  pages/       BoardPage (kanban), JobsPage, AdminPage, AccountPage, LoginPage
   components/  Layout, CandidateDrawer, JobForm
-  lib/         Supabase client, shared types
+  lib/         Supabase client, Edge Function helper, shared types
 supabase/
   migrations/  001 schema + RLS, 002 service_role grants, 003 CV storage
-  functions/   create-user, score-cv
+  functions/   create-user, manage-user, score-cv
   seed_demo.sql
 ```
 
@@ -68,7 +69,7 @@ supabase/
 
 1. **Supabase project:** create one, then run the files in `supabase/migrations/` in order in the SQL Editor (as `postgres`). Under Authentication, disable "Allow new users to sign up".
 2. **First admin:** add a user under Authentication > Users, then run the insert at the bottom of `001_init.sql` with their email.
-3. **Edge Functions:** deploy `create-user` and `score-cv` (dashboard editor or `supabase functions deploy`). Add the secret `OPENROUTER_API_KEY`.
+3. **Edge Functions:** deploy `create-user`, `manage-user` and `score-cv` (dashboard editor or `supabase functions deploy`). Add the secret `OPENROUTER_API_KEY`.
 4. **Frontend:**
    ```bash
    npm install
@@ -82,7 +83,8 @@ Deployment: any static host works. `vercel.json` rewrites all paths to `index.ht
 ## Assumptions
 
 - One customer account = one company. Data is scoped per customer account (no teams or multiple recruiters per company).
-- Admins are internal staff who onboard customers and hand over credentials; there is no self sign-up or password reset flow.
+- Admins are internal staff who onboard customers and hand over credentials. There is no self sign-up and no "forgot password" email; an admin resets the password and the user can then change it on the Account page.
+- Deleting a customer account deletes all of its jobs, candidates and CVs.
 - A candidate belongs to one job. The same person applying for two jobs is two candidate records.
 - Jobs are closed rather than deleted, so candidate history is kept. Candidates can be deleted (e.g. GDPR requests).
 - The pipeline stages are fixed: Applied, Screening, Interview, Offer, Hired, Rejected.

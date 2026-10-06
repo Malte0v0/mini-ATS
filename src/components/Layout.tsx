@@ -48,7 +48,9 @@ function Header() {
         </label>
       )}
 
-      <span className="ml-auto text-sm text-gray-500">{profile?.email}</span>
+      <NavLink to="/account" className={(state) => `ml-auto ${linkClass(state)}`} title="Account settings">
+        {profile?.email}
+      </NavLink>
       <button onClick={signOut} className="text-sm text-gray-600 hover:text-gray-900">
         Sign out
       </button>

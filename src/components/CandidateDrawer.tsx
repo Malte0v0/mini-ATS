@@ -1,5 +1,5 @@
-import { FunctionsHttpError } from '@supabase/supabase-js'
 import { useState, type FormEvent } from 'react'
+import { invokeFunction } from '../lib/functions'
 import { supabase } from '../lib/supabase'
 import { STAGES, type AiAssessment, type Candidate, type CandidateStage, type Job } from '../lib/types'
 
@@ -100,16 +100,12 @@ export default function CandidateDrawer({ candidate, jobs, ownerId, defaultJobId
     if (!candidate) return
     setAssessing(true)
     setError(null)
-    const { data, error } = await supabase.functions.invoke<{ score: number } & AiAssessment>('score-cv', {
-      body: { candidate_id: candidate.id },
+    const { data, error } = await invokeFunction<{ score: number } & AiAssessment>('score-cv', {
+      candidate_id: candidate.id,
     })
     setAssessing(false)
     if (error) {
-      const message =
-        error instanceof FunctionsHttpError
-          ? ((await error.context.json().catch(() => null))?.error ?? error.message)
-          : error.message
-      setError(message)
+      setError(error)
       return
     }
     if (data) {

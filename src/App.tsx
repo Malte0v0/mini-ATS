@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthProvider'
 import RequireAdmin from './auth/RequireAdmin'
 import RequireAuth from './auth/RequireAuth'
 import Layout from './components/Layout'
+import AccountPage from './pages/AccountPage'
 import AdminPage from './pages/AdminPage'
 import BoardPage from './pages/BoardPage'
 import JobsPage from './pages/JobsPage'
@@ -23,6 +24,7 @@ export default function App() {
           >
             <Route path="/" element={<BoardPage />} />
             <Route path="/jobs" element={<JobsPage />} />
+            <Route path="/account" element={<AccountPage />} />
             <Route
               path="/admin"
               element={
