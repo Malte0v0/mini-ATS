@@ -36,6 +36,8 @@ export type AiAssessment = {
   summary: string
   strengths: string[]
   concerns: string[]
+  model?: string
+  assessed_at?: string
 }
 
 export type Candidate = {

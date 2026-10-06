@@ -1,6 +1,7 @@
+import { FunctionsHttpError } from '@supabase/supabase-js'
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
-import { STAGES, type Candidate, type CandidateStage, type Job } from '../lib/types'
+import { STAGES, type AiAssessment, type Candidate, type CandidateStage, type Job } from '../lib/types'
 
 type Props = {
   candidate: Candidate | null // null = create a new candidate
@@ -27,6 +28,9 @@ export default function CandidateDrawer({ candidate, jobs, ownerId, defaultJobId
   const [cvFile, setCvFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [aiScore, setAiScore] = useState(candidate?.ai_score ?? null)
+  const [aiAssessment, setAiAssessment] = useState(candidate?.ai_assessment ?? null)
+  const [assessing, setAssessing] = useState(false)
 
   // Open jobs, plus the candidate's current job even if it has been closed.
   const selectableJobs = jobs.filter((j) => j.status === 'open' || j.id === candidate?.job_id)
@@ -92,6 +96,29 @@ export default function CandidateDrawer({ candidate, jobs, ownerId, defaultJobId
     else window.open(data.signedUrl, '_blank', 'noopener')
   }
 
+  async function assessCv() {
+    if (!candidate) return
+    setAssessing(true)
+    setError(null)
+    const { data, error } = await supabase.functions.invoke<{ score: number } & AiAssessment>('score-cv', {
+      body: { candidate_id: candidate.id },
+    })
+    setAssessing(false)
+    if (error) {
+      const message =
+        error instanceof FunctionsHttpError
+          ? ((await error.context.json().catch(() => null))?.error ?? error.message)
+          : error.message
+      setError(message)
+      return
+    }
+    if (data) {
+      setAiScore(data.score)
+      setAiAssessment(data)
+      onSaved() // refresh the board so the card shows the score
+    }
+  }
+
   async function handleDelete() {
     if (!candidate || !confirm(`Delete ${candidate.full_name}? This cannot be undone.`)) return
     setBusy(true)
@@ -120,6 +147,37 @@ export default function CandidateDrawer({ candidate, jobs, ownerId, defaultJobId
             ✕
           </button>
         </div>
+
+        {!isNew && (
+          <section className="mb-6 rounded-lg border border-gray-200 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold">AI CV assessment</h3>
+              <button
+                type="button"
+                onClick={assessCv}
+                disabled={assessing || !candidate.cv_path}
+                title={candidate.cv_path ? undefined : 'Upload a CV first'}
+                className="rounded bg-indigo-600 px-3 py-1 text-xs text-white disabled:opacity-50"
+              >
+                {assessing ? 'Assessing...' : aiAssessment ? 'Re-assess' : 'Assess CV'}
+              </button>
+            </div>
+            {!candidate.cv_path && <p className="mt-2 text-xs text-gray-500">Upload a CV below to enable the assessment.</p>}
+            {aiAssessment && aiScore !== null && (
+              <div className="mt-3 space-y-2 text-sm">
+                <p>
+                  <span className="text-lg font-semibold">{aiScore}/10</span>{' '}
+                  <span className="text-gray-700">{aiAssessment.summary}</span>
+                </p>
+                <AssessmentList title="Strengths" items={aiAssessment.strengths} className="text-green-800" />
+                <AssessmentList title="Concerns" items={aiAssessment.concerns} className="text-amber-800" />
+                <p className="text-xs text-gray-400">
+                  AI-generated first-pass screening, not a decision. Always review the CV yourself.
+                </p>
+              </div>
+            )}
+          </section>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <label className="block">
@@ -208,6 +266,20 @@ export default function CandidateDrawer({ candidate, jobs, ownerId, defaultJobId
           </div>
         </form>
       </aside>
+    </div>
+  )
+}
+
+function AssessmentList({ title, items, className }: { title: string; items: string[]; className: string }) {
+  if (items.length === 0) return null
+  return (
+    <div>
+      <p className={`text-xs font-semibold uppercase tracking-wide ${className}`}>{title}</p>
+      <ul className="ml-4 list-disc text-gray-700">
+        {items.map((item, i) => (
+          <li key={i}>{item}</li>
+        ))}
+      </ul>
     </div>
   )
 }
