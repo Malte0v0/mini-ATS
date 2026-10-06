@@ -6,7 +6,7 @@ export default function HomePage() {
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_SUPABASE_URL}/auth/v1/health`, {
-      headers: { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
+      headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
     })
       .then((res) => setStatus(res.ok ? 'Connected to Supabase' : `Error: HTTP ${res.status}`))
       .catch((err) => setStatus(`Error: ${err.message}`))
